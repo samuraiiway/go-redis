@@ -1,11 +1,11 @@
 package handler
 
 import(
-	"strconv"
 	"fmt"
-	"net/http"
+	"strconv"
 	"encoding/json"
 	"io/ioutil"
+	"net/http"
 	"github.com/gorilla/mux"
 	"github.com/google/uuid"
 	"github.com/samuraiiway/go-redis/repository/redis"
@@ -22,6 +22,7 @@ const (
 	REDIS_GET_ID_PATH = "/redis/{" + NAMESPACE + "}/{" + ID + "}"
 	REDIS_GET_INDEX_PATH = "/redis/{" + NAMESPACE + "}/{" + INDEX + "}/{" + VALUE + "}"
 	REDIS_GENERATE_PATH = "/redis/{" + NAMESPACE + "}/generate/{" + NUMBER + "}"
+	REDIS_LISTEN_PATH = "/redis/listen/{" + NAMESPACE + "}"
 )
 
 func RedisUpsert(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +73,9 @@ func RedisUpsert(w http.ResponseWriter, r *http.Request) {
 
 	// Update data
 	redis.UpsertData(namespace, id, &response)
+
+	// Broadcast id
+	SendMessage(namespace, response)
 
 	// Save indexes
 	if (len(keys) > 0) {
@@ -140,5 +144,36 @@ func RedisGenerate(w http.ResponseWriter, r * http.Request) {
 		response, _ := json.Marshal(data)
 		redis.UpsertData(namespace, id, &response)
 		redis.IndexData(namespace, id, keys)
+	}
+}
+
+func RedisListen(w http.ResponseWriter, r * http.Request) {
+	vars := mux.Vars(r)
+	namespace := vars[NAMESPACE]
+	flusher, ok := w.(http.Flusher)
+	
+	if !ok {
+		fmt.Println("Unsupported steaming")
+		http.Error(w, "Unsupported steaming", http.StatusInternalServerError)
+		return;
+	}
+
+	endSignal := r.Context().Done()
+	ch := NewClient(namespace)
+
+	go func() {
+		<-endSignal
+		CloseClient(namespace, ch)
+	}()
+
+	defer func() {
+		CloseClient(namespace, ch)
+	}()
+
+	w.Header().Set("Content-Type", "text/event-stream")
+
+	for {
+		fmt.Fprintf(w, "data: %s\n\n", <-ch)
+		flusher.Flush()
 	}
 }

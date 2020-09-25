@@ -1,8 +1,9 @@
 package main
 
-import(
-	"github.com/gorilla/mux"
+import (
 	"net/http"
+
+	"github.com/gorilla/mux"
 	"github.com/samuraiiway/go-redis/handler"
 )
 
@@ -13,5 +14,5 @@ func main() {
 	router.HandleFunc(handler.REDIS_GET_ID_PATH, handler.RedisGetID).Methods("GET")
 	router.HandleFunc(handler.REDIS_GET_INDEX_PATH, handler.RedisGetIndex).Methods("GET")
 	router.HandleFunc(handler.REDIS_GENERATE_PATH, handler.RedisGenerate).Methods("POST")
-	http.ListenAndServe(":8000", router)  
+	http.ListenAndServe(":8000", router)
 }

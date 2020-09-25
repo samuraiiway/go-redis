@@ -1,7 +1,9 @@
 package redis
 
-import(
+import (
 	"fmt"
+
+	"github.com/samuraiiway/go-redis/listener"
 )
 
 var _ROOT_NAMESPACE = map[string]map[string][]byte{}
@@ -9,8 +11,8 @@ var _ROOT_INDEX = map[string]map[string][]string{}
 
 func getNameSpace(namespace string) map[string][]byte {
 	space, ok := _ROOT_NAMESPACE[namespace]
-	
-	if (!ok) {
+
+	if !ok {
 		space = map[string][]byte{}
 		_ROOT_NAMESPACE[namespace] = space
 	}
@@ -20,8 +22,8 @@ func getNameSpace(namespace string) map[string][]byte {
 
 func getIndex(namespace string) map[string][]string {
 	index, ok := _ROOT_INDEX[namespace]
-	
-	if (!ok) {
+
+	if !ok {
 		index = map[string][]string{}
 		_ROOT_INDEX[namespace] = index
 	}
@@ -29,9 +31,10 @@ func getIndex(namespace string) map[string][]string {
 	return index
 }
 
-func UpsertData(namespace string, id string, data *[]byte) {
+func UpsertData(namespace string, id string, data []byte) {
 	space := getNameSpace(namespace)
-	space[id] = *data
+	space[id] = data
+	listener.SendMessage(namespace, data)
 }
 
 func GetDataByID(namespace string, id string) []byte {
@@ -41,13 +44,13 @@ func GetDataByID(namespace string, id string) []byte {
 
 func GetDataByIndex(namespace string, index string, value string) [][]byte {
 	result := [][]byte{}
-	
+
 	space := getNameSpace(namespace)
 	indexes := getIndex(namespace)
 	ids := indexes[fmt.Sprintf("%v:%v", index, value)]
 	for _, id := range ids {
 		data, ok := space[id]
-		if (ok) {
+		if ok {
 			result = append(result, data)
 		}
 	}
@@ -57,7 +60,7 @@ func GetDataByIndex(namespace string, index string, value string) [][]byte {
 
 func IndexData(namespace string, id string, keys []string) {
 	index := getIndex(namespace)
-	
+
 	for _, key := range keys {
 		ids := index[key]
 		ids = append(ids, id)
